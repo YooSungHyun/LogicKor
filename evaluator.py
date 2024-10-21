@@ -31,11 +31,12 @@ def get_args():
     parser.add_argument("-j", "--judge-model", help="Judge Model", default="gpt-4-1106-preview")
     parser.add_argument("-t", "--threads", help="Thread count", default=42, type=int)
     parser.add_argument("--azure", help="Use Azure OpenAI", action="store_true")
+    parser.add_argument("--base_url", help="if you want to using local vllm", type=str, default=None)
     return parser.parse_args()
 
 
-def create_openai_client(api_key: str):
-    return OpenAI(api_key=api_key)
+def create_openai_client(api_key: str, base_url: str = None):
+    return OpenAI(api_key=api_key, base_url=base_url)
 
 
 def create_azure_openai_client(api_key: str):
@@ -77,6 +78,7 @@ def create_answers(
                 model=AZURE_DEPLOYMENT_NAME,
                 temperature=0.0,
                 n=1,
+                seed=4242,
                 messages=[
                     {
                         "role": "system",
@@ -90,6 +92,7 @@ def create_answers(
                 model=judge_model,
                 temperature=0.0,
                 n=1,
+                seed=4242,
                 messages=[
                     {
                         "role": "system",
@@ -143,12 +146,14 @@ def process_file(client, file_path: Path, output_dir: Path, judge_model, threads
     print(f"- 현재 Processing : {file_path}")
     df_model_outputs = pd.read_json(file_path, lines=True)
 
-    output_file = output_dir / file_path.relative_to(args.model_output_dir)
-    output_file.parent.mkdir(parents=True, exist_ok=True)
+    parts = os.path.normpath(file_path).split(os.sep)
+    new_path = os.sep.join(parts[1:])
+    output_file_path = output_dir / new_path
+    output_file_path.parent.mkdir(parents=True, exist_ok=True)
 
     with ThreadPoolExecutor(max_workers=threads) as executor:
         for row in df_model_outputs.iterrows():
-            executor.submit(process_item, client, row[1], judge_model, output_file)
+            executor.submit(process_item, client, row[1], judge_model, output_file_path)
 
 
 def is_hidden(filepath: Path) -> bool:
@@ -160,7 +165,7 @@ def main():
     if args.azure:
         client = create_azure_openai_client(args.openai_api_key)
     else:
-        client = create_openai_client(args.openai_api_key)
+        client = create_openai_client(args.openai_api_key, args.base_url)
 
     input_dir = Path(args.model_output_dir)
     output_dir = Path("./evaluated")
@@ -170,7 +175,9 @@ def main():
     print(f"Found {len(json_files)} JSON files to process")
 
     for file_path in json_files:
-        output_file_path = output_dir / file_path.relative_to(input_dir)
+        parts = os.path.normpath(file_path).split(os.sep)
+        new_path = os.sep.join(parts[1:])
+        output_file_path = output_dir / new_path
         if output_file_path.exists():
             print(f"이미 평가 완료.. : {file_path}")
             continue

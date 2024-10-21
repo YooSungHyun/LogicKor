@@ -1,0 +1,1 @@
+python evaluator.py -o ./generated/outputs/ties-instruct -k  -t 30 --base_url  -j 
