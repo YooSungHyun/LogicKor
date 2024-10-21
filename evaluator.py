@@ -22,6 +22,7 @@ AZURE_ENDPOINT = os.environ.get("AZURE_ENDPOINT", None)
 AZURE_DEPLOYMENT_NAME = os.environ.get("AZURE_DEPLOYMENT_NAME", None)
 AZURE_API_VERSION = os.environ.get("AZURE_API_VERSION", None)
 USE_AZURE_OPENAI = AZURE_ENDPOINT is not None and AZURE_DEPLOYMENT_NAME is not None and AZURE_API_VERSION is not None
+SLEEP_SEC = 5
 
 
 def get_args():
@@ -114,8 +115,8 @@ def create_answers(
         return {"judge_message": judge_message, "judge_score": judge_score}
 
     except Exception as e:
-        print("Error. Retrying after 20 sec", e)
-        time.sleep(20)
+        print(f"Error. Retrying after {SLEEP_SEC} sec", e)
+        time.sleep(SLEEP_SEC)
 
         # 꼭 아래 이유가 아닐 수 있음. 핸들링 필요.
         if i > 3:
@@ -182,7 +183,7 @@ def main():
             print(f"이미 평가 완료.. : {file_path}")
             continue
         process_file(client, file_path, output_dir, args.judge_model, args.threads, args)
-        time.sleep(20)  # to handle ratelimit!
+        time.sleep(SLEEP_SEC)  # to handle ratelimit!
 
 
 if __name__ == "__main__":
